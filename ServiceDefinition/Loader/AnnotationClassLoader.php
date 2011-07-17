@@ -13,6 +13,8 @@ namespace Bundle\WebServiceBundle\ServiceDefinition\Loader;
 
 
 
+use Bundle\WebServiceBundle\ServiceDefinition\Annotation\Param;
+
 use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
 use Bundle\WebServiceBundle\ServiceDefinition\Method;
 use Bundle\WebServiceBundle\ServiceDefinition\Argument;
@@ -86,7 +88,7 @@ class AnnotationClassLoader implements LoaderInterface
                 {
                     $serviceArgument = new Argument();
                     $serviceArgument->setName($wsParamAnnot->getName());
-                    $serviceArgument->setType(new Type($wsParamAnnot->getPhpType(), $wsParamAnnot->getXmlType()));
+                    $serviceArgument->setType($this->getArgumentType($method, $wsParamAnnot));
                     
                     $serviceMethod->getArguments()->add($serviceArgument);
                 }
@@ -113,6 +115,26 @@ class AnnotationClassLoader implements LoaderInterface
         {
             return $method->class . '::' . $method->name;
         }
+    }
+    
+    private function getArgumentType(\ReflectionMethod $method, Param $annotation)
+    {
+        $phpType = $annotation->getPhpType();
+        $xmlType = $annotation->getXmlType();
+        
+        if($phpType === null)
+        {
+            foreach($method->getParameters() as $param)
+            {
+                if($param->name == $annotation->getName())
+                {
+                    $phpType = $param->getClass()->name;
+                    break;
+                }
+            }
+        }
+        
+        return new Type($phpType, $xmlType);
     }
     
     /**
