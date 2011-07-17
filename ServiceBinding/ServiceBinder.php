@@ -18,8 +18,6 @@ use Bundle\WebServiceBundle\Soap\SoapHeader;
 
 use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
 use Bundle\WebServiceBundle\ServiceDefinition\Header;
-use Bundle\WebServiceBundle\ServiceDefinition\Dumper\DumperInterface;
-use Bundle\WebServiceBundle\ServiceDefinition\Loader\LoaderInterface;
 
 class ServiceBinder
 {
@@ -27,11 +25,6 @@ class ServiceBinder
      * @var \Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition
      */
     private $definition;
-
-    /**
-     * @var \Bundle\WebServiceBundle\ServiceDefinition\Dumper\DumperInterface
-     */
-    private $definitionDumper;
 
     /**
      * @var \Bundle\WebServiceBundle\ServiceBinding\MessageBinderInterface
