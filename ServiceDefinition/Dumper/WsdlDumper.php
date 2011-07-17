@@ -10,6 +10,10 @@
 
 namespace Bundle\WebServiceBundle\ServiceDefinition\Dumper;
 
+use Bundle\WebServiceBundle\Util\QName;
+
+use Bundle\WebServiceBundle\ServiceDefinition\Type;
+
 use Bundle\WebServiceBundle\ServiceDefinition\Method;
 use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
 
@@ -24,23 +28,24 @@ use Zend\Soap\Wsdl;
  */
 class WsdlDumper implements DumperInterface
 {
+    private $wsdl;
     private $definition;
     
     public function dumpServiceDefinition(ServiceDefinition $definition, array $options = array())
     {
         Assert::thatArgumentNotNull('definition', $definition);
 
-        $options = array_merge(array('endpoint' => ''), $options);
+        $options = array_merge(array('endpoint' => '', 'stylesheet' => null), $options);
         
         $this->definition = $definition;
 
-        $wsdl = new Wsdl($definition->getName(), $definition->getNamespace());
-
+        $wsdl = $this->wsdl = new Wsdl($definition->getName(), $definition->getNamespace(), new WsdlTypeStrategy());
+        
         $port = $wsdl->addPortType($this->getPortTypeName());
-        $binding = $wsdl->addBinding($this->getBindingName(), 'tns:' . $this->getPortTypeName());
+        $binding = $wsdl->addBinding($this->getBindingName(), $this->qualify($this->getPortTypeName()));
         
         $wsdl->addSoapBinding($binding, 'rpc');
-        $wsdl->addService($this->getServiceName(), $this->getPortName(), 'tns:' . $this->getBindingName(), $options['endpoint']);
+        $wsdl->addService($this->getServiceName(), $this->getPortName(), $this->qualify($this->getBindingName()), $options['endpoint']);
 
         foreach($definition->getMethods() as $method)
         {
@@ -60,7 +65,7 @@ class WsdlDumper implements DumperInterface
             $wsdl->addMessage($this->getRequestMessageName($method), $requestParts);
             $wsdl->addMessage($this->getResponseMessageName($method), $responseParts);
 
-            $portOperation = $wsdl->addPortOperation($port, $method->getName(), 'tns:' . $this->getRequestMessageName($method), 'tns:' . $this->getResponseMessageName($method));
+            $portOperation = $wsdl->addPortOperation($port, $method->getName(), $this->qualify($this->getRequestMessageName($method)), $this->qualify($this->getResponseMessageName($method)));
             $portOperation->setAttribute('parameterOrder', implode(' ', array_keys($requestParts)));
 
             $bindingInput = array(
@@ -82,11 +87,29 @@ class WsdlDumper implements DumperInterface
 
         $this->definition = null;
 
-        $wsdl->toDomDocument()->formatOutput = true;
+        $dom = $wsdl->toDomDocument();
+        $dom->formatOutput = true;
+        
+        if($options['stylesheet'] !== null)
+        {
+            $stylesheet = $dom->createProcessingInstruction('xml-stylesheet', sprintf('type="text/xsl" href="%s"', $options['stylesheet']));
+            
+            $dom->insertBefore($stylesheet, $dom->documentElement);
+        }
         
         return $wsdl->toXml();
     }
-
+    
+    protected function qualify($name, $namespace = null)
+    {
+        if($namespace === null)
+        {
+            $namespace = $this->definition->getNamespace();
+        }
+        
+        return $this->wsdl->toDomDocument()->lookupPrefix($namespace) . ':' . $name;
+    }
+    
     protected function getPortName()
     {
         return $this->definition->getName() . 'Port';
