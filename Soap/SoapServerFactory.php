@@ -28,14 +28,14 @@ use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
 
 class SoapServerFactory
 {
-    private $definition;
-    private $converters;
     private $wsdlFile;
+    private $classmap;
+    private $converters;
 
-    public function __construct(ServiceDefinition $definition, $wsdlFile, ConverterRepository $converters)
+    public function __construct($wsdlFile, array $classmap, ConverterRepository $converters)
     {
-        $this->definition = $definition;
         $this->wsdlFile = $wsdlFile;
+        $this->classmap = $classmap;
         $this->converters = $converters;
     }
 
@@ -44,7 +44,7 @@ class SoapServerFactory
         $server = new \SoapServer(
             $this->wsdlFile,
             array(
-                'classmap' => $this->createSoapServerClassmap(),
+                'classmap' => $this->classmap,
             	'typemap'  => $this->createSoapServerTypemap($request, $response),
                 'features' => SOAP_SINGLE_ELEMENT_ARRAYS,
             )
@@ -72,41 +72,5 @@ class SoapServerFactory
         }
 
         return $result;
-    }
-
-    private function createSoapServerClassmap()
-    {
-        $result = array();
-
-        foreach($this->definition->getHeaders() as $header)
-        {
-            $this->addSoapServerClassmapEntry($result, $header->getType());
-        }
-
-        foreach($this->definition->getMethods() as $method)
-        {
-            foreach($method->getArguments() as $arg)
-            {
-                $this->addSoapServerClassmapEntry($result, $arg->getType());
-            }
-        }
-
-        return $result;
-    }
-
-    private function addSoapServerClassmapEntry(&$classmap, Type $type)
-    {
-        // TODO: fix this hack
-        if($type->getXmlType() === null) return;
-        
-        $xmlType = QName::fromPackedQName($type->getXmlType())->getName();
-        $phpType = $type->getPhpType();
-
-        if(isset($classmap[$xmlType]) && $classmap[$xmlType] != $phpType)
-        {
-            // log warning
-        }
-
-        $classmap[$xmlType] = $phpType;
     }
 }

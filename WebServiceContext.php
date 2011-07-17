@@ -11,6 +11,8 @@
 namespace Bundle\WebServiceBundle;
 
 
+use Bundle\WebServiceBundle\Converter\TypeRepository;
+
 use Symfony\Component\Config\ConfigCache;
 use Symfony\Component\Config\Loader\LoaderInterface;
 
@@ -27,9 +29,10 @@ use Bundle\WebServiceBundle\Soap\SoapServerFactory;
  */
 class WebServiceContext
 {
-    private $converterRepository;
     private $requestMessageBinder;
     private $responseMessageBinder;
+    private $typeRepository;
+    private $converterRepository;
     
     private $serviceDefinitionLoader;
     private $wsdlFileDumper;
@@ -40,14 +43,16 @@ class WebServiceContext
     private $serviceBinder;
     private $serverFactory;
     
-    public function __construct(LoaderInterface $loader, DumperInterface $dumper, ConverterRepository $converterRepository, MessageBinderInterface $requestMessageBinder, MessageBinderInterface $responseMessageBinder, array $options)
+    public function __construct(LoaderInterface $loader, DumperInterface $dumper, MessageBinderInterface $requestMessageBinder, MessageBinderInterface $responseMessageBinder, TypeRepository $typeRepository, ConverterRepository $converterRepository, array $options)
     {
         $this->serviceDefinitionLoader = $loader;
         $this->wsdlFileDumper = $dumper;
         
-        $this->converterRepository = $converterRepository;
         $this->requestMessageBinder = $requestMessageBinder;
         $this->responseMessageBinder = $responseMessageBinder;
+        
+        $this->typeRepository = $typeRepository;
+        $this->converterRepository = $converterRepository;
         
         $this->options = $options;
     }
@@ -64,6 +69,8 @@ class WebServiceContext
             $this->serviceDefinition = $this->serviceDefinitionLoader->load($this->options['resource'], $this->options['resource_type']);
             $this->serviceDefinition->setName($this->options['name']);
             $this->serviceDefinition->setNamespace($this->options['namespace']);
+            
+            $this->typeRepository->fixTypeInformation($this->serviceDefinition);
         }
         
         return $this->serviceDefinition;
@@ -71,16 +78,15 @@ class WebServiceContext
     
     public function getWsdlFile($endpoint = null)
     {
-        $id = $endpoint !== null ? '.' . md5($endpoint) : '';
-        $file = sprintf('%s/%s.wsdl', $this->options['cache_dir'], $this->options['name'] . $id);
-        $cache = new ConfigCache($file, true);
+        $file = sprintf('%s/%s.%s.wsdl', $this->options['cache_dir'], $this->options['name'], md5($endpoint));
+        $cache = new ConfigCache($file, $this->options['debug']);
         
         if(!$cache->isFresh())
         {
             $cache->write($this->wsdlFileDumper->dumpServiceDefinition($this->getServiceDefinition(), array('endpoint' => $endpoint)));
         }
         
-        return $file;
+        return (string) $cache;
     }
     
     public function getWsdlFileContent($endpoint = null)
@@ -102,7 +108,7 @@ class WebServiceContext
     {
         if($this->serverFactory === null)
         {
-            $this->serverFactory = new SoapServerFactory($this->getServiceDefinition(), $this->getWsdlFile(), $this->converterRepository);
+            $this->serverFactory = new SoapServerFactory($this->getWsdlFile(), array(), $this->converterRepository);
         }
         
         return $this->serverFactory;

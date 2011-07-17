@@ -16,6 +16,20 @@ namespace Bundle\WebServiceBundle\Util;
  */
 class QName
 {
+    public static function isPrefixedQName($qname)
+    {
+        return strpos($qname, ':') !== false ? true : false;
+    }
+    
+    public static function fromPrefixedQName($qname, $resolveNamespacePrefixCallable)
+    {
+        Assert::thatArgument('qname', self::isPrefixedQName($qname));
+        
+        list($prefix, $name) = explode(':', $qname);
+        
+        return new self(call_user_func($resolveNamespacePrefixCallable, $prefix), $name);
+    }
+    
     public static function fromPackedQName($qname)
     {
         Assert::thatArgument('qname', preg_match('/^\{(.+)\}(.+)$/', $qname, $matches));

@@ -107,4 +107,21 @@ class ServiceDefinition
         $this->headers = new Collection('getName');
         $this->headers->addAll($headers);
     }
+    
+    public function getAllTypes()
+    {
+        $result = array();
+        
+        foreach($this->methods as $method)
+        {
+            foreach($method->getArguments() as $argument)
+            {
+                $result[] = $argument->getType();
+            }
+            
+            $result[] = $method->getReturn();
+        }
+        
+        return $result;
+    }
 }

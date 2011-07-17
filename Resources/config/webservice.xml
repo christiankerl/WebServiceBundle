@@ -12,16 +12,16 @@
 	<services>        
 		<service id="webservice.controller" class="Bundle\WebServiceBundle\Controller\SoapWebServiceController">
             <argument type="service" id="service_container" />
-            <argument type="service" id="http_kernel" />
 		</service>
 		
 		<service id="webservice.context" class="Bundle\WebServiceBundle\WebServiceContext" abstract="true">
 		     
 		    <argument type="service" id="webservice.definition.loader"/>
 		    <argument type="service" id="webservice.definition.dumper.wsdl"/>
-            <argument type="service" id="webservice.converter.repository"/>
             <argument type="service" id="webservice.binder.request"/>
             <argument type="service" id="webservice.binder.response"/>
+            <argument type="service" id="webservice.type.repository"/>
+            <argument type="service" id="webservice.converter.repository"/>
             
             <argument type="collection">
                 <!-- 
@@ -42,10 +42,30 @@
         <service id="webservice.binder.response.documentwrapped" class="Bundle\WebServiceBundle\ServiceBinding\DocumentLiteralWrappedResponseMessageBinder" />
 		
 		<service id="webservice.converter.repository" class="Bundle\WebServiceBundle\Converter\ConverterRepository">
-			<call method="registerTypeConverterServices">
-				<argument type="service" id="service_container" />
-			</call>
+			
 		</service>
+        <service id="webservice.type.repository" class="Bundle\WebServiceBundle\Converter\TypeRepository">
+            <call method="addXmlNamespace">
+                <argument>xsd</argument>
+                <argument>http://www.w3.org/2001/XMLSchema</argument>
+            </call>
+            <call method="addDefaultTypeMapping">
+                <argument>string</argument>
+                <argument>xsd:string</argument>
+            </call>
+            <call method="addDefaultTypeMapping">
+                <argument>int</argument>
+                <argument>xsd:int</argument>
+            </call>
+            <call method="addDefaultTypeMapping">
+                <argument>bool</argument>
+                <argument>xsd:boolean</argument>
+            </call>
+            <call method="addDefaultTypeMapping">
+                <argument>float</argument>
+                <argument>xsd:float</argument>
+            </call>
+        </service>
 				
         <service id="webservice.file_locator" class="%webservice.file_locator.class%" public="false">
             <argument type="service" id="kernel" />
