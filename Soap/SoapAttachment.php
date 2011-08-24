@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,7 +8,7 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Soap;
+namespace BeSimple\SoapBundle\Soap;
 
 class SoapAttachment
 {
@@ -18,8 +18,8 @@ class SoapAttachment
 
     public function __construct($id, $type, $content)
     {
-        $this->id = $id;
-        $this->type = $type;
+        $this->id      = $id;
+        $this->type    = $type;
         $this->content = $content;
     }
 

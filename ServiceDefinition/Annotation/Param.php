@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,21 +8,49 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceDefinition\Annotation;
+namespace BeSimple\SoapBundle\ServiceDefinition\Annotation;
 
-class Param extends TypedElement
+/**
+ * @Annotation
+ */
+class Param extends Configuration implements TypedElementInterface
 {
-    private $name;
-    
-    public function __construct($values)
+    private $value;
+    private $phpType;
+    private $xmlType;
+
+    public function getValue()
     {
-        parent::__construct($values);
-        
-        $this->name = $values['value'];
+        return $this->value;
     }
-    
-    public function getName()
+
+    public function getPhpType()
     {
-        return $this->name;
+        return $this->phpType;
+    }
+
+    public function getXmlType()
+    {
+        return $this->xmlType;
+    }
+
+    public function setValue($value)
+    {
+        $this->value = $value;
+    }
+
+    public function setPhpType($phpType)
+    {
+        $this->phpType = $phpType;
+    }
+
+    public function setXmlType($xmlType)
+    {
+        $this->xmlType = $xmlType;
+    }
+
+    public function getAliasName()
+    {
+        return 'param';
     }
 }

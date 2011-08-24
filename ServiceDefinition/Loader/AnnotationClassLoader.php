@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,19 +8,12 @@
  * with this source code in the file LICENSE.
  */
 
+namespace BeSimple\SoapBundle\ServiceDefinition\Loader;
 
-namespace Bundle\WebServiceBundle\ServiceDefinition\Loader;
+use BeSimple\SoapBundle\ServiceDefinition as Definition;
+use BeSimple\SoapBundle\ServiceDefinition\Annotation;
 
-
-
-use Bundle\WebServiceBundle\ServiceDefinition\Annotation\Param;
-
-use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
-use Bundle\WebServiceBundle\ServiceDefinition\Method;
-use Bundle\WebServiceBundle\ServiceDefinition\Argument;
-use Bundle\WebServiceBundle\ServiceDefinition\Type;
-
-use Bundle\WebServiceBundle\ServiceDefinition\Annotation\Method as MethodAnnotation;
+use Doctrine\Common\Annotations\Reader;
 
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\Config\Loader\LoaderResolver;
@@ -34,18 +27,14 @@ use Symfony\Component\Config\Loader\LoaderResolver;
  */
 class AnnotationClassLoader implements LoaderInterface
 {
-    private $wsMethodAnnotationClass = 'Bundle\\WebServiceBundle\\ServiceDefinition\\Annotation\\Method';
-    private $wsParamAnnotationClass = 'Bundle\\WebServiceBundle\\ServiceDefinition\\Annotation\\Param';
-    private $wsResultAnnotationClass = 'Bundle\\WebServiceBundle\\ServiceDefinition\\Annotation\\Result';
-    
     protected $reader;
-    
+
     /**
      * Constructor.
      *
-     * @param AnnotationReader $reader
+     * @param \Doctrine\Common\Annotations\Reader $reader
      */
-    public function __construct(AnnotationReader $reader)
+    public function __construct(Reader $reader)
     {
         $this->reader = $reader;
     }
@@ -56,48 +45,68 @@ class AnnotationClassLoader implements LoaderInterface
      * @param string $class A class name
      * @param string $type  The resource type
      *
-     * @return ServiceDefinition A ServiceDefinition instance
+     * @return \BeSimple\SoapBundle\ServiceDefinition\ServiceDefinition A ServiceDefinition instance
      *
      * @throws \InvalidArgumentException When route can't be parsed
      */
     public function load($class, $type = null)
     {
-        if (!class_exists($class)) 
-        {
+        if (!class_exists($class)) {
             throw new \InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));
         }
 
-        $class = new \ReflectionClass($class);
+        $class      = new \ReflectionClass($class);
+        $definition = new Definition\ServiceDefinition();
 
-        $definition = new ServiceDefinition();
-        
-        foreach ($class->getMethods() as $method) 
-        {
-            $wsMethodAnnot = $this->reader->getMethodAnnotation($method, $this->wsMethodAnnotationClass);
-            
-            if($wsMethodAnnot !== null)
-            {
-                $wsParamAnnots = $this->reader->getMethodAnnotations($method, $this->wsParamAnnotationClass);
-                $wsResultAnnot = $this->reader->getMethodAnnotation($method, $this->wsResultAnnotationClass);
-                
-                $serviceMethod = new Method();
-                $serviceMethod->setName($wsMethodAnnot->getName($method->getName()));
-                $serviceMethod->setController($this->getController($method, $wsMethodAnnot));
-                
-                foreach($wsParamAnnots as $wsParamAnnot)
-                {
-                    $serviceArgument = new Argument();
-                    $serviceArgument->setName($wsParamAnnot->getName());
-                    $serviceArgument->setType($this->getArgumentType($method, $wsParamAnnot));
-                    
-                    $serviceMethod->getArguments()->add($serviceArgument);
+        foreach ($class->getMethods() as $method) {
+            $serviceArguments =
+            $serviceHeaders   = array();
+            $serviceMethod    =
+            $serviceReturn    = null;
+
+            foreach ($this->reader->getMethodAnnotations($method) as $i => $annotation) {
+                if ($annotation instanceof Annotation\Header) {
+                    $serviceHeaders[] = new Definition\Header(
+                        $annotation->getValue(),
+                        $this->getArgumentType($method, $annotation)
+                    );
+                } elseif ($annotation instanceof Annotation\Param) {
+                    $serviceArguments[] = new Definition\Argument(
+                        $annotation->getValue(),
+                        $this->getArgumentType($method, $annotation)
+                    );
+                } elseif ($annotation instanceof Annotation\Method) {
+                    if ($serviceMethod) {
+                        throw new \LogicException(sprintf('@Soap\Method defined twice for "%s".', $method->getName()));
+                    }
+
+                    $serviceMethod = new Definition\Method(
+                        $annotation->getValue(),
+                        $this->getController($method, $annotation)
+                    );
+                } elseif ($annotation instanceof Annotation\Result) {
+                    if ($serviceReturn) {
+                        throw new \LogicException(sprintf('@Soap\Result defined twice for "%s".', $method->getName()));
+                    }
+
+                    $serviceReturn = new Definition\Type($annotation->getPhpType(), $annotation->getXmlType());
                 }
-                
-                if($wsResultAnnot !== null)
-                {
-                    $serviceMethod->setReturn(new Type($wsResultAnnot->getPhpType(), $wsResultAnnot->getXmlType()));
+            }
+
+            if (!$serviceMethod && (!empty($serviceArguments) || $serviceReturn)) {
+                throw new \LogicException(sprintf('@Soap\Method non-existent for "%s".', $method->getName()));
+            }
+
+            if ($serviceMethod) {
+                $serviceMethod->setArguments($serviceArguments);
+                $serviceMethod->setHeaders($serviceHeaders);
+
+                if (!$serviceReturn) {
+                    throw new \LogicException(sprintf('@Soap\Result non-existent for "%s".', $method->getName()));
                 }
-                
+
+                $serviceMethod->setReturn($serviceReturn);
+
                 $definition->getMethods()->add($serviceMethod);
             }
         }
@@ -105,38 +114,45 @@ class AnnotationClassLoader implements LoaderInterface
         return $definition;
     }
 
-    private function getController(\ReflectionMethod $method, MethodAnnotation $annotation)
+    /**
+     * @param \ReflectionMethod $method
+     * @param \BeSimple\SoapBundle\ServiceDefinition\Annotation\Method $annotation
+     *
+     * @return string
+     */
+    private function getController(\ReflectionMethod $method, Annotation\Method $annotation)
     {
-        if($annotation->getService() !== null)
-        {
+        if(null !== $annotation->getService()) {
             return $annotation->getService() . ':' . $method->name;
-        }
-        else
-        {
+        } else {
             return $method->class . '::' . $method->name;
         }
     }
-    
-    private function getArgumentType(\ReflectionMethod $method, Param $annotation)
+
+    /**
+     * @param \ReflectionMethod $method
+     * @param \BeSimple\SoapBundle\ServiceDefinition\Annotation\Param $annotation
+     *
+     * @return \BeSimple\SoapBundle\ServiceDefinition\Type
+     */
+    private function getArgumentType(\ReflectionMethod $method, Annotation\Param $annotation)
     {
         $phpType = $annotation->getPhpType();
         $xmlType = $annotation->getXmlType();
-        
-        if($phpType === null)
-        {
-            foreach($method->getParameters() as $param)
-            {
-                if($param->name == $annotation->getName())
-                {
+
+        if (null === $phpType) {
+            foreach ($method->getParameters() as $param) {
+                if ($param->name === $annotation->getName()) {
                     $phpType = $param->getClass()->name;
+
                     break;
                 }
             }
         }
-        
-        return new Type($phpType, $xmlType);
+
+        return new Definition\Type($phpType, $xmlType);
     }
-    
+
     /**
      * Returns true if this class supports the given resource.
      *

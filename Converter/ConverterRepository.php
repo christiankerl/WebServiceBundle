@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,23 +8,16 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Converter;
-
-/**
- *
- * @author Christian Kerl <christian-kerl@web.de>
- */
-use Bundle\WebServiceBundle\SoapKernel;
+namespace BeSimple\SoapBundle\Converter;
 
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+/**
+ * @author Christian Kerl <christian-kerl@web.de>
+ */
 class ConverterRepository
 {
     private $typeConverters = array();
-
-    public function __construct()
-    {
-    }
 
     public function addTypeConverter(TypeConverterInterface $converter)
     {
@@ -38,11 +31,5 @@ class ConverterRepository
 
     public function registerTypeConverterServices(ContainerInterface $container)
     {
-        /*
-        foreach($container->findTaggedServiceIds('webservice.converter') as $id => $attributes)
-        {
-            $this->addTypeConverter($container->get($id));
-        }
-         */
     }
 }

@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,98 +8,84 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Converter;
+namespace BeSimple\SoapBundle\Converter;
 
-use Bundle\WebServiceBundle\Util\String;
-
-use Bundle\WebServiceBundle\Util\Assert;
-
-use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
-use Bundle\WebServiceBundle\Util\QName;
+use BeSimple\SoapBundle\ServiceDefinition\ServiceDefinition;
+use BeSimple\SoapBundle\Util\Assert;
+use BeSimple\SoapBundle\Util\QName;
+use BeSimple\SoapBundle\Util\String;
 
 /**
- *
  * @author Christian Kerl <christian-kerl@web.de>
  */
 class TypeRepository
 {
     const ARRAY_SUFFIX = '[]';
-    
-    private $xmlNamespaces = array();
+
+    private $xmlNamespaces  = array();
     private $defaultTypeMap = array();
-    
+
     public function addXmlNamespace($prefix, $url)
     {
         $this->xmlNamespaces[$prefix] = $url;
     }
-    
+
     public function getXmlNamespace($prefix)
     {
         return $this->xmlNamespaces[$prefix];
     }
-    
+
     public function addDefaultTypeMapping($phpType, $xmlType)
     {
         Assert::thatArgumentNotNull('phpType', $phpType);
         Assert::thatArgumentNotNull('xmlType', $xmlType);
-        
+
         $this->defaultTypeMap[$phpType] = $this->getQName($xmlType);
     }
-    
+
     public function fixTypeInformation(ServiceDefinition $definition)
     {
         $typeMap = $this->defaultTypeMap;
-        
-        foreach($definition->getAllTypes() as $type)
-        {
+
+        foreach($definition->getAllTypes() as $type) {
             $phpType = $type->getPhpType();
             $xmlType = $type->getXmlType();
-            
-            if($phpType === null)
-            {
+
+            if (null === $phpType) {
                 throw new \InvalidArgumentException();
             }
-            
-            if($xmlType === null)
-            {
-                if(!isset($typeMap[$phpType]))
-                {
-                    $parts = explode('\\', $phpType);
+
+            if (null === $xmlType) {
+                if (!isset($typeMap[$phpType])) {
+                    $parts       = explode('\\', $phpType);
                     $xmlTypeName = ucfirst(end($parts));
-                    
-                    if(String::endsWith($phpType, self::ARRAY_SUFFIX))
-                    {
+
+                    if (String::endsWith($phpType, self::ARRAY_SUFFIX)) {
                         $xmlTypeName = str_replace(self::ARRAY_SUFFIX, 'Array', $xmlTypeName);
                     }
-                    
+
                     $typeMap[$phpType] = new QName($definition->getNamespace(), $xmlTypeName);
                 }
-                
+
                 $xmlType = $typeMap[$phpType];
-            }
-            else
-            {
+            } else {
                 $xmlType = $this->getQName($xmlType);
             }
-            
+
             $type->setXmlType((string) $xmlType);
         }
     }
-    
+
     private function getQName($xmlType)
     {
-        if(QName::isPrefixedQName($xmlType))
-        {   
+        if (QName::isPrefixedQName($xmlType)) {
             return QName::fromPrefixedQName($xmlType, array($this, 'getXmlNamespace'));
-        }
-        else
-        {
+        } else {
             return QName::fromPackedQName($xmlType);
         }
     }
-    
+
     public function createComplexTypeMap(ServiceDefinition $definition)
     {
-        
     }
 }

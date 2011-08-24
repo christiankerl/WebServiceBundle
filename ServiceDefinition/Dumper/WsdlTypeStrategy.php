@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,16 +8,18 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceDefinition\Dumper;
+namespace BeSimple\SoapBundle\ServiceDefinition\Dumper;
 
-use Bundle\WebServiceBundle\Util\String;
+use BeSimple\SoapBundle\ServiceDefinition\ServiceDefinition;
+use BeSimple\SoapBundle\ServiceDefinition\Loader\AnnotationComplexTypeLoader;
+use BeSimple\SoapBundle\ServiceDefinition\Strategy\ComplexType;
+use BeSimple\SoapBundle\Util\String;
 
-use Zend\Soap\Exception,
-    Zend\Soap\Wsdl,
-    Zend\Soap\Wsdl\Strategy,
-    Zend\Soap\Wsdl\Strategy\DefaultComplexType,
-    Zend\Soap\Wsdl\Strategy\ArrayOfTypeSequence;
-    
+use Zend\Soap\Exception;
+use Zend\Soap\Wsdl as BaseWsdl;
+use Zend\Soap\Wsdl\Strategy;
+use Zend\Soap\Wsdl\Strategy\ArrayOfTypeSequence;
+
 class WsdlTypeStrategy implements Strategy
 {
     /**
@@ -25,45 +27,69 @@ class WsdlTypeStrategy implements Strategy
      *
      * @var \Zend\Soap\Wsdl|null
      */
-    private $_context;
+    private $context;
+
+    private $loader;
+    private $definition;
 
     private $typeStrategy;
     private $arrayStrategy;
-    
-    public function __construct()
+
+    public function __construct(AnnotationComplexTypeLoader $loader, ServiceDefinition $definition)
     {
-        $this->typeStrategy = new DefaultComplexType();
-        $this->arrayStrategy = new ArrayOfTypeSequence();
+        $this->loader     = $loader;
+        $this->definition = $definition;
     }
-    
+
     /**
      * Method accepts the current WSDL context file.
      *
      * @param \Zend\Soap\Wsdl $context
      */
-    public function setContext(Wsdl $context)
+    public function setContext(BaseWsdl $context)
     {
-        $this->_context = $context;
+        $this->context = $context;
+
         return $this;
     }
-    
+
     /**
      * Create a complex type based on a strategy
      *
-     * @throws \Zend\Soap\WsdlException
      * @param  string $type
+     *
      * @return string XSD type
+     *
+     * @throws \Zend\Soap\WsdlException
      */
     public function addComplexType($type)
     {
-        if(!($this->_context instanceof Wsdl) ) {
-            throw new Exception\InvalidArgumentException(
-                "Cannot add complex type '$type', no context is set for this composite strategy."
-            );
+        if (!$this->context) {
+            throw new \LogicException(sprintf('Cannot add complex type "%s", no context is set for this composite strategy.', $type));
         }
 
-        $strategy = String::endsWith($type, '[]') ? $this->arrayStrategy : $this->typeStrategy;
-        $strategy->setContext($this->_context);
+        $strategy = String::endsWith($type, '[]') ? $this->getArrayStrategy() : $this->getTypeStrategy();
+
         return $strategy->addComplexType($type);
+    }
+
+    private function getArrayStrategy()
+    {
+        if (!$this->arrayStrategy) {
+            $this->arrayStrategy = new ArrayOfTypeSequence();
+            $this->arrayStrategy->setContext($this->context);
+        }
+
+        return $this->arrayStrategy;
+    }
+
+    private function getTypeStrategy()
+    {
+        if (!$this->typeStrategy) {
+            $this->typeStrategy = new ComplexType($this->loader, $this->definition);
+            $this->typeStrategy->setContext($this->context);
+        }
+
+        return $this->typeStrategy;
     }
 }

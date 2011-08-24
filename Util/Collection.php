@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,27 +8,32 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Util;
+namespace BeSimple\SoapBundle\Util;
 
 class Collection implements \IteratorAggregate, \Countable
 {
     private $elements = array();
-    private $keyPropertyGetter;
+    private $getter;
+    private $class;
 
-    public function __construct($keyPropertyGetter)
+    public function __construct($getter, $class = null)
     {
-        $this->keyPropertyGetter = $keyPropertyGetter;
+        $this->getter = $getter;
+        $this->class  = $class;
     }
 
     public function add($element)
     {
-        $this->elements[call_user_func(array($element, $this->keyPropertyGetter))] = $element;
+        if ($this->class && !$element instanceof $this->class) {
+            throw new \InvalidArgumentException(sprintf('Cannot add class "%s" because it is not an instance of "%s"', get_class($element), $this->class));
+        }
+
+        $this->elements[$element->{$this->getter}()] = $element;
     }
 
     public function addAll($elements)
     {
-        foreach ($elements as $element)
-        {
+        foreach ($elements as $element) {
             $this->add($element);
         }
     }
@@ -53,7 +58,7 @@ class Collection implements \IteratorAggregate, \Countable
         return count($this->elements);
     }
 
-    public function getIterator ()
+    public function getIterator()
     {
         return new \ArrayIterator($this->elements);
     }

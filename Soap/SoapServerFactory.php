@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,69 +8,58 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Soap;
+namespace BeSimple\SoapBundle\Soap;
+
+use BeSimple\SoapBundle\Converter\ConverterRepository;
 
 /**
- *
  * @author Christian Kerl <christian-kerl@web.de>
  */
-use Bundle\WebServiceBundle\ServiceDefinition\Type;
-
-use Bundle\WebServiceBundle\ServiceDefinition\Dumper\FileDumper;
-
-use Bundle\WebServiceBundle\Converter\ConverterRepository;
-
-use Bundle\WebServiceBundle\SoapKernel;
-
-use Bundle\WebServiceBundle\Util\QName;
-
-use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
-
 class SoapServerFactory
 {
     private $wsdlFile;
     private $classmap;
     private $converters;
+    private $debug;
 
-    public function __construct($wsdlFile, array $classmap, ConverterRepository $converters)
+    public function __construct($wsdlFile, array $classmap, ConverterRepository $converters, $debug = false)
     {
-        $this->wsdlFile = $wsdlFile;
-        $this->classmap = $classmap;
+        $this->wsdlFile   = $wsdlFile;
+        $this->classmap   = $classmap;
         $this->converters = $converters;
+        $this->debug      = $debug;
     }
 
-    public function create(&$request, &$response)
+    public function create($request, $response)
     {
-        $server = new \SoapServer(
+        return new \SoapServer(
             $this->wsdlFile,
             array(
-                'classmap' => $this->classmap,
-            	'typemap'  => $this->createSoapServerTypemap($request, $response),
-                'features' => SOAP_SINGLE_ELEMENT_ARRAYS,
+                'classmap'   => $this->classmap,
+                'typemap'    => $this->createSoapServerTypemap($request, $response),
+                'features'   => SOAP_SINGLE_ELEMENT_ARRAYS,
+                'cache_wsdl' => $this->debug ? WSDL_CACHE_NONE : WSDL_CACHE_DISK,
             )
         );
-
-        return $server;
     }
 
-    private function createSoapServerTypemap(&$request, &$response)
+    private function createSoapServerTypemap($request, $response)
     {
-        $result = array();
+        $typemap = array();
 
-        foreach($this->converters->getTypeConverters() as $typeConverter)
-        {
-            $result[] = array(
+        foreach($this->converters->getTypeConverters() as $typeConverter) {
+            $typemap[] = array(
                 'type_name' => $typeConverter->getTypeName(),
-                'type_ns' => $typeConverter->getTypeNamespace(),
-                'from_xml' => function($input) use (&$request, $typeConverter) {
+                'type_ns'   => $typeConverter->getTypeNamespace(),
+                'from_xml'  => function($input) use ($request, $typeConverter) {
                     return $typeConverter->convertXmlToPhp($request, $input);
                 },
-                'to_xml' => function($input) use (&$response, $typeConverter) {
+                'to_xml'    => function($input) use ($response, $typeConverter) {
                     return $typeConverter->convertPhpToXml($response, $input);
-                }
+                },
             );
         }
 
-        return $result;
+        return $typemap;
     }
 }

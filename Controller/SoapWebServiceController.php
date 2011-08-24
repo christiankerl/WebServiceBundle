@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,31 +8,17 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Controller;
+namespace BeSimple\SoapBundle\Controller;
 
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
+use BeSimple\SoapBundle\Soap\SoapRequest;
+use BeSimple\SoapBundle\Soap\SoapResponse;
 
-use Symfony\Component\HttpKernel\HttpKernelInterface;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\ContainerAware;
-
-use Bundle\WebServiceBundle\Soap\SoapRequest;
-use Bundle\WebServiceBundle\Soap\SoapResponse;
-use Bundle\WebServiceBundle\Soap\SoapHeader;
-use Bundle\WebServiceBundle\Soap\SoapServerFactory;
-
-use Bundle\WebServiceBundle\ServiceBinding\ServiceBinder;
-
-use Bundle\WebServiceBundle\Converter\ConverterRepository;
-
-use Bundle\WebServiceBundle\Util\String;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
- * 
- *
  * @author Christian Kerl <christian-kerl@web.de>
  */
 class SoapWebServiceController extends ContainerAware
@@ -43,86 +29,64 @@ class SoapWebServiceController extends ContainerAware
     protected $soapServer;
 
     /**
-     * @var \Bundle\WebServiceBundle\Soap\SoapRequest
+     * @var \BeSimple\SoapBundle\Soap\SoapRequest
      */
     protected $soapRequest;
 
     /**
-     * @var \Bundle\WebServiceBundle\Soap\SoapResponse
+     * @var \BeSimple\SoapBundle\Soap\SoapResponse
      */
     protected $soapResponse;
 
     /**
-     * @var \Bundle\WebServiceBundle\ServiceBinding\ServiceBinder
+     * @var \BeSimple\SoapBundle\ServiceBinding\ServiceBinder
      */
     protected $serviceBinder;
 
-    public function __construct(ContainerInterface $container)
-    {
-        $this->setContainer($container);
-    }
+    /**
+     * @var array
+     */
+    private $headers = array();
 
-    public function getRequest()
-    {
-        return $this->soapRequest;
-    }
-
-    public function getResponse()
-    {
-        return $this->soapResponse;
-    }
-
-    private function getHttpRequest()
-    {
-        return $this->container->get('request');
-    }
-    
-    private function getHttpKernel()
-    {
-        return $this->container->get('http_kernel');
-    }
-    
-    public function call($webservice)
+    /**
+     * @return \BeSimple\SoapBundle\Soap\SoapResponse
+     */
+    public function callAction($webservice)
     {
         $webServiceContext = $this->getWebServiceContext($webservice);
-
-        $this->soapRequest = SoapRequest::createFromHttpRequest($this->getHttpRequest());
-
         $this->serviceBinder = $webServiceContext->getServiceBinder();
-        
-        $this->soapServer = $webServiceContext->getServerFactory()->create($this->soapRequest, $this->soapResponse);
+
+        $this->soapRequest = SoapRequest::createFromHttpRequest($this->container->get('request'));
+        $this->soapServer  = $webServiceContext->getServerFactory()->create($this->soapRequest, $this->soapResponse);
+
         $this->soapServer->setObject($this);
 
         ob_start();
-        {
-            $this->soapServer->handle($this->soapRequest->getSoapMessage());
-        }
-        $soapResponseContent = ob_get_clean();
-        
-        $this->soapResponse->setContent($soapResponseContent);
+        $this->soapServer->handle($this->soapRequest->getSoapMessage());
+        $this->soapResponse->setContent(ob_get_clean());
 
         return $this->soapResponse;
     }
 
-    public function definition($webservice)
+    /**
+     * @return Symfony\Component\HttpFoundation\Response
+     */
+    public function definitionAction($webservice)
     {
         $webServiceContext = $this->getWebServiceContext($webservice);
-        $request = $this->container->get('request');
-        
-        if($request->query->has('WSDL'))
-        {
+        $request           = $this->container->get('request');
+
+        if ($request->query->has('wsdl') || $request->query->has('WSDL')) {
             $endpoint = $this->container->get('router')->generate('_webservice_call', array('webservice' => $webservice), true);
-            
+
             $response = new Response($webServiceContext->getWsdlFileContent($endpoint));
             $response->headers->set('Content-Type', 'application/wsdl+xml');
-        }
-        else
-        {
+        } else {
             // TODO: replace with better representation
             $response = new Response($webServiceContext->getWsdlFileContent());
             $response->headers->set('Content-Type', 'text/xml');
         }
-        
+
         return $response;
     }
 
@@ -146,30 +110,32 @@ class SoapWebServiceController extends ContainerAware
      */
     public function __call($method, $arguments)
     {
-        if($this->serviceBinder->isServiceHeader($method))
-        {
-            // collect request soap headers
-            $this->soapRequest->getSoapHeaders()->add(
-                $this->serviceBinder->processServiceHeader($method, $arguments[0])
-            );
+        if ($this->serviceBinder->isServiceMethod($method)) {
+            // @TODO Add all SoapHeaders in SoapRequest
+            foreach ($this->headers as $name => $value) {
+                if ($this->serviceBinder->isServiceHeader($method, $name)) {
+                    $this->soapRequest->getSoapHeaders()->add($this->serviceBinder->processServiceHeader($method, $name, $value));
+                }
+            }
+            $this->headers = null;
 
-            return;
-        }
-
-        if($this->serviceBinder->isServiceMethod($method))
-        {
             $this->soapRequest->attributes->add(
                 $this->serviceBinder->processServiceMethodArguments($method, $arguments)
             );
 
             // forward to controller
-            $response = $this->getHttpKernel()->handle($this->soapRequest, HttpKernelInterface::SUB_REQUEST, false);
+            try {
+                $response = $this->container->get('http_kernel')->handle($this->soapRequest, HttpKernelInterface::SUB_REQUEST, false);
+            } catch (\SoapFault $e) {
+                $this->soapResponse = new Response(null, 500);
+
+                throw $e;
+            }
 
             $this->soapResponse = $this->checkResponse($response);
 
             // add response soap headers to soap server
-            foreach($this->soapResponse->getSoapHeaders() as $header)
-            {
+            foreach ($this->soapResponse->getSoapHeaders() as $header) {
                 $this->soapServer->addSoapHeader($header->toNativeSoapHeader());
             }
 
@@ -178,7 +144,26 @@ class SoapWebServiceController extends ContainerAware
                 $method,
                 $this->soapResponse->getReturnValue()
             );
+        } else {
+            // collect request soap headers
+            $this->headers[$method] = $arguments[0];
         }
+    }
+
+    /**
+     * @return \BeSimple\SoapBundle\Soap\SoapRequest
+     */
+    public function getRequest()
+    {
+        return $this->soapRequest;
+    }
+
+    /**
+     * @return \BeSimple\SoapBundle\Soap\SoapResponse
+     */
+    public function getResponse()
+    {
+        return $this->soapResponse;
     }
 
     /**
@@ -192,11 +177,19 @@ class SoapWebServiceController extends ContainerAware
      */
     protected function checkResponse(Response $response)
     {
-        if($response == null || !$response instanceof SoapResponse)
-        {
+        if (!$response instanceof SoapResponse) {
             throw new \InvalidArgumentException();
         }
 
         return $response;
+    }
+
+    private function getWebServiceContext($webservice)
+    {
+        if (!$this->container->has('besimple.soap.context.'.$webservice)) {
+            throw new NotFoundHttpException(sprintf('No webservice with name "%s" found.', $webservice));
+        }
+
+        return $this->container->get('besimple.soap.context.'.$webservice);
     }
 }

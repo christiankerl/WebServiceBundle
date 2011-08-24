@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,85 +8,89 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceBinding;
+namespace BeSimple\SoapBundle\ServiceBinding;
 
-use Bundle\WebServiceBundle\Util\QName;
+use BeSimple\SoapBundle\ServiceDefinition\Header;
+use BeSimple\SoapBundle\ServiceDefinition\ServiceDefinition;
+use BeSimple\SoapBundle\Soap\SoapHeader;
+use BeSimple\SoapBundle\Util\QName;
 
-use Bundle\WebServiceBundle\ServiceDefinition\Type;
-
-use Bundle\WebServiceBundle\Soap\SoapHeader;
-
-use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
-use Bundle\WebServiceBundle\ServiceDefinition\Header;
-
+/**
+ * @author Christian Kerl <christian-kerl@web.de>
+ */
 class ServiceBinder
 {
     /**
-     * @var \Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition
+     * @var \BeSimple\SoapBundle\ServiceDefinition\ServiceDefinition
      */
     private $definition;
 
     /**
-     * @var \Bundle\WebServiceBundle\ServiceBinding\MessageBinderInterface
+     * @var \BeSimple\SoapBundle\ServiceBinding\MessageBinderInterface
+     */
+    private $requestHeaderMessageBinder;
+
+    /**
+     * @var \BeSimple\SoapBundle\ServiceBinding\MessageBinderInterface
      */
     private $requestMessageBinder;
 
     /**
-     * @var \Bundle\WebServiceBundle\ServiceBinding\MessageBinderInterface
+     * @var \BeSimple\SoapBundle\ServiceBinding\MessageBinderInterface
      */
     private $responseMessageBinder;
 
-    public function __construct(
-        ServiceDefinition $definition,
-        MessageBinderInterface $requestMessageBinder,
-        MessageBinderInterface $responseMessageBinder
-    )
-    {
+    public function __construct(ServiceDefinition $definition, MessageBinderInterface $requestHeaderMessageBinder, MessageBinderInterface $requestMessageBinder, MessageBinderInterface $responseMessageBinder) {
         $this->definition = $definition;
 
-        $this->requestMessageBinder = $requestMessageBinder;
+        $this->requestHeaderMessageBinder = $requestHeaderMessageBinder;
+        $this->requestMessageBinder       = $requestMessageBinder;
+
         $this->responseMessageBinder = $responseMessageBinder;
     }
 
-    public function isServiceHeader($name)
+    public function isServiceHeader($method, $header)
     {
-        return $this->definition->getHeaders()->has($name);
+        return $this->definition->getMethods()->get($method)->getHeaders()->has($header);
     }
 
-    public function isServiceMethod($name)
+    public function isServiceMethod($method)
     {
-        return $this->definition->getMethods()->has($name);
+        return $this->definition->getMethods()->has($method);
     }
 
-    public function processServiceHeader($name, $data)
+    public function processServiceHeader($method, $header, $data)
     {
-        $headerDefinition = $this->definition->getHeaders()->get($name);
+        $methodDefinition = $this->definition->getMethods()->get($method);
+        $headerDefinition = $methodDefinition->getHeaders()->get($header);
+
+        $this->requestHeaderMessageBinder->setHeader($header);
+        $data = $this->requestHeaderMessageBinder->processMessage($methodDefinition, $data, $this->definition->getDefinitionComplexTypes());
 
         return $this->createSoapHeader($headerDefinition, $data);
     }
 
-    public function processServiceMethodArguments($name, $arguments)
+    public function processServiceMethodArguments($method, $arguments)
     {
-        $methodDefinition = $this->definition->getMethods()->get($name);
+        $methodDefinition = $this->definition->getMethods()->get($method);
 
-        $result = array();
-        $result['_controller'] = $methodDefinition->getController();
-        $result = array_merge($result, $this->requestMessageBinder->processMessage($methodDefinition, $arguments));
-
-        return $result;
+        return array_merge(
+            array('_controller' => $methodDefinition->getController()),
+            $this->requestMessageBinder->processMessage($methodDefinition, $arguments, $this->definition->getDefinitionComplexTypes())
+        );
     }
 
     public function processServiceMethodReturnValue($name, $return)
     {
         $methodDefinition = $this->definition->getMethods()->get($name);
 
-        return $this->responseMessageBinder->processMessage($methodDefinition, $return);
+        return $this->responseMessageBinder->processMessage($methodDefinition, $return, $this->definition->getDefinitionComplexTypes());
     }
 
     protected function createSoapHeader(Header $headerDefinition, $data)
     {
         $qname = QName::fromPackedQName($headerDefinition->getType()->getXmlType());
 
-        return new SoapHeader($qname->getNamespace(), $qname->getName(), $data);
+        return new SoapHeader($qname->getNamespace(), $headerDefinition->getName(), $data);
     }
 }

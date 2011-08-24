@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,28 +8,30 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Util;
+namespace BeSimple\SoapBundle\Util;
 
 /**
- *
  * @author Christian Kerl <christian-kerl@web.de>
  */
 class QName
 {
+    private $namespace;
+    private $name;
+
     public static function isPrefixedQName($qname)
     {
-        return strpos($qname, ':') !== false ? true : false;
+        return false !== strpos($qname, ':') ? true : false;
     }
-    
+
     public static function fromPrefixedQName($qname, $resolveNamespacePrefixCallable)
     {
         Assert::thatArgument('qname', self::isPrefixedQName($qname));
-        
+
         list($prefix, $name) = explode(':', $qname);
-        
+
         return new self(call_user_func($resolveNamespacePrefixCallable, $prefix), $name);
     }
-    
+
     public static function fromPackedQName($qname)
     {
         Assert::thatArgument('qname', preg_match('/^\{(.+)\}(.+)$/', $qname, $matches));
@@ -37,13 +39,10 @@ class QName
         return new self($matches[1], $matches[2]);
     }
 
-    private $namespace;
-    private $name;
-
     public function __construct($namespace, $name)
     {
         $this->namespace = $namespace;
-        $this->name = $name;
+        $this->name      = $name;
     }
 
     public function getNamespace()

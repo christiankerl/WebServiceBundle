@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,14 +8,13 @@
  * with this source code in the file LICENSE.
  */
 
+namespace BeSimple\SoapBundle\ServiceDefinition\Loader;
 
-namespace Bundle\WebServiceBundle\ServiceDefinition\Loader;
+use BeSimple\SoapBundle\ServiceDefinition\ServiceDefinition;
 
-use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
-
-use Symfony\Component\Config\Resource\FileResource;
-use Symfony\Component\Config\Loader\FileLoader;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Config\Loader\FileLoader;
+use Symfony\Component\Config\Resource\FileResource;
 
 /**
  * AnnotationFileLoader loads ServiceDefinition from annotations set
@@ -60,13 +59,11 @@ class AnnotationFileLoader extends FileLoader
     {
         $path = $this->locator->locate($file);
 
-        $definition = new ServiceDefinition();
-        
         if ($class = $this->findClass($path)) {
-            $definition = $this->loader->load($class, $type);
+            return $definition = $this->loader->load($class, $type);
         }
-        
-        return $definition;
+
+        return null;
     }
 
     /**
@@ -87,13 +84,13 @@ class AnnotationFileLoader extends FileLoader
      *
      * @param string $file A PHP file path
      *
-     * @return string|false Full class name if found, false otherwise 
+     * @return string|false Full class name if found, false otherwise
      */
     protected function findClass($file)
     {
-        $class = false;
+        $class     = false;
         $namespace = false;
-        $tokens = token_get_all(file_get_contents($file));
+        $tokens    = token_get_all(file_get_contents($file));
         while ($token = array_shift($tokens)) {
             if (!is_array($token)) {
                 continue;

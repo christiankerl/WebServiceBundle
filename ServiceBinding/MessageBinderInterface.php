@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,19 +8,20 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceBinding;
+namespace BeSimple\SoapBundle\ServiceBinding;
 
-use Bundle\WebServiceBundle\ServiceDefinition\Method;
+use BeSimple\SoapBundle\ServiceDefinition\Method;
 
+/**
+ * @author Christian Kerl <christian-kerl@web.de>
+ */
 interface MessageBinderInterface
 {
     /**
-     *
-     *
      * @param Method $messageDefinition
      * @param mixed $message
      *
      * @return mixed
      */
-    function processMessage(Method $messageDefinition, $message);
+    function processMessage(Method $messageDefinition, $message, array $definitionComplexTypes = array());
 }

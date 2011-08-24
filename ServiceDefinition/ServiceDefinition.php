@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,9 +8,9 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceDefinition;
+namespace BeSimple\SoapBundle\ServiceDefinition;
 
-use Bundle\WebServiceBundle\Util\Collection;
+use BeSimple\SoapBundle\Util\Collection;
 
 class ServiceDefinition
 {
@@ -25,21 +25,20 @@ class ServiceDefinition
     private $namespace;
 
     /**
-     * @var \Bundle\WebServiceBundle\Util\Collection
+     * @var \BeSimple\SoapBundle\Util\Collection
      */
     private $methods;
 
-    /**
-     * @var \Bundle\WebServiceBundle\Util\Collection
-     */
-    private $headers;
+    private $complexTypes = array();
 
-    public function __construct($name = null, $namespace = null, array $methods = array(), array $headers = array())
+    public function __construct($name = null, $namespace = null, array $methods = array())
     {
         $this->setName($name);
         $this->setNamespace($namespace);
+
+        $this->methods = new Collection('getName', 'BeSimple\SoapBundle\ServiceDefinition\Method');
+
         $this->setMethods($methods);
-        $this->setHeaders($headers);
     }
 
     /**
@@ -75,7 +74,7 @@ class ServiceDefinition
     }
 
     /**
-     * @return \Bundle\WebServiceBundle\Util\Collection
+     * @return \BeSimple\SoapBundle\Util\Collection
      */
     public function getMethods()
     {
@@ -85,27 +84,41 @@ class ServiceDefinition
     /**
      * @param array $methods
      */
-    public function setMethods($methods)
+    public function setMethods(array $methods)
     {
-        $this->methods = new Collection('getName');
         $this->methods->addAll($methods);
     }
 
     /**
-     * @return \Bundle\WebServiceBundle\Util\Collection
+     * @return array
      */
-    public function getHeaders()
+    public function getAllTypes()
     {
-        return $this->headers;
+        $types = array();
+
+        foreach ($this->methods as $method) {
+            foreach ($method->getArguments() as $argument) {
+                $types[] = $argument->getType();
+            }
+
+            foreach ($method->getHeaders() as $header) {
+                $types[] = $header->getType();
+            }
+
+            $types[] = $method->getReturn();
+        }
+
+        return $types;
     }
 
-    /**
-     * @param array $headers
-     */
-    public function setHeaders($headers)
+    public function addDefinitionComplexType($type, Collection $complexType)
     {
-        $this->headers = new Collection('getName');
-        $this->headers->addAll($headers);
+        $this->complexTypes[$type] = $complexType;
+    }
+
+    public function getDefinitionComplexTypes()
+    {
+        return $this->complexTypes;
     }
     
     public function getAllTypes()

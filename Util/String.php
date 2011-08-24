@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,7 +8,7 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Util;
+namespace BeSimple\SoapBundle\Util;
 
 /**
  * String provides utility methods for strings.
@@ -17,35 +17,33 @@ namespace Bundle\WebServiceBundle\Util;
  */
 class String
 {
-  /**
-   * Checks if a string starts with a given string.
-   *
-   * @param  string $str    A string
-   * @param  string $substr A string to check against
-   *
-   * @return bool           True if str starts with substr
-   */
-  public static function startsWith($str, $substr)
-  {
-    if(is_string($str) && is_string($substr) && strlen($str) >= strlen($substr))
+    /**
+     * Checks if a string starts with a given string.
+     *
+     * @param  string $str    A string
+     * @param  string $substr A string to check against
+     *
+     * @return bool           True if str starts with substr
+     */
+    public static function startsWith($str, $substr)
     {
-      return $substr == substr($str, 0, strlen($substr));
+        if(is_string($str) && is_string($substr) && strlen($str) >= strlen($substr)) {
+            return $substr == substr($str, 0, strlen($substr));
+        }
     }
-  }
 
-  /**
-   * Checks if a string ends with a given string.
-   *
-   * @param  string $str    A string
-   * @param  string $substr A string to check against
-   *
-   * @return bool           True if str ends with substr
-   */
-  public static function endsWith($str, $substr)
-  {
-    if(is_string($str) && is_string($substr) && strlen($str) >= strlen($substr))
+    /**
+     * Checks if a string ends with a given string.
+     *
+     * @param  string $str    A string
+     * @param  string $substr A string to check against
+     *
+     * @return bool           True if str ends with substr
+     */
+    public static function endsWith($str, $substr)
     {
-      return $substr == substr($str, strlen($str) - strlen($substr));
+        if(is_string($str) && is_string($substr) && strlen($str) >= strlen($substr)) {
+            return $substr == substr($str, strlen($str) - strlen($substr));
+        }
     }
-  }
 }

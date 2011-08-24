@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,16 +8,19 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceBinding;
+namespace BeSimple\SoapBundle\ServiceBinding;
 
-use Bundle\WebServiceBundle\ServiceDefinition\Method;
+use BeSimple\SoapBundle\ServiceDefinition\Method;
 
+/**
+ * @author Christian Kerl <christian-kerl@web.de>
+ */
 class DocumentLiteralWrappedResponseMessageBinder implements MessageBinderInterface
 {
     public function processMessage(Method $messageDefinition, $message)
     {
         $result = new \stdClass();
-        $result->{$messageDefinition->getName() . 'Result'} = $message;
+        $result->{$messageDefinition->getName().'Result'} = $message;
 
         return $result;
     }

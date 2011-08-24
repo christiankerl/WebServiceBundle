@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,9 +8,9 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Soap;
+namespace BeSimple\SoapBundle\Soap;
 
-use Bundle\WebServiceBundle\Util\Collection;
+use BeSimple\SoapBundle\Util\Collection;
 
 use Symfony\Component\HttpFoundation\Request;
 
@@ -24,11 +24,6 @@ use Zend\Mime\Message;
  */
 class SoapRequest extends Request
 {
-    public static function createFromHttpRequest(Request $request)
-    {
-        return new static($request->query->all(), $request->request->all(), $request->attributes->all(), $request->cookies->all(), $request->files->all(), $request->server->all(), $request->content);
-    }
-    
     /**
      * @var string
      */
@@ -40,22 +35,32 @@ class SoapRequest extends Request
     protected $soapAction;
 
     /**
-     * @var \Bundle\WebServiceBundle\Util\Collection
+     * @var \BeSimple\SoapBundle\Util\Collection
      */
     protected $soapHeaders;
 
     /**
-     * @var \Bundle\WebServiceBundle\Util\Collection
+     * @var \BeSimple\SoapBundle\Util\Collection
      */
     protected $soapAttachments;
+
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return SoapRequest
+     */
+    public static function createFromHttpRequest(Request $request)
+    {
+        return new static($request->query->all(), $request->request->all(), $request->attributes->all(), $request->cookies->all(), $request->files->all(), $request->server->all(), $request->content);
+    }
 
     public function initialize(array $query = array(), array $request = array(), array $attributes = array(), array $cookies = array(), array $files = array(), array $server = array(), $content = null)
     {
         parent::initialize($query, $request, $attributes, $cookies, $files, $server, $content);
 
-        $this->soapMessage = null;
-        $this->soapHeaders = new Collection('getName');
-        $this->soapAttachments = new Collection('getId');
+        $this->soapMessage     = null;
+        $this->soapHeaders     = new Collection('getName', 'BeSimple\SoapBundle\Soap\SoapHeader');
+        $this->soapAttachments = new Collection('getId', 'BeSimple\SoapBundle\Soap\SoapAttachment');
 
         $this->setRequestFormat('soap');
     }
@@ -67,8 +72,7 @@ class SoapRequest extends Request
      */
     public function getSoapMessage()
     {
-        if($this->soapMessage === null)
-        {
+        if(null === $this->soapMessage) {
             $this->soapMessage = $this->initializeSoapMessage();
         }
 
@@ -87,19 +91,14 @@ class SoapRequest extends Request
 
     protected function initializeSoapMessage()
     {
-        if($this->server->has('CONTENT_TYPE'))
-        {
+        if($this->server->has('CONTENT_TYPE')) {
             $type = $this->splitContentTypeHeader($this->server->get('CONTENT_TYPE'));
 
-            switch($type['_type'])
-            {
+            switch($type['_type']) {
                 case 'multipart/related':
-                    if($type['type'] == 'application/xop+xml')
-                    {
+                    if($type['type'] == 'application/xop+xml') {
                         return $this->initializeMtomSoapMessage($type, $this->getContent());
-                    }
-                    else
-                    {
+                    } else {
                         //log error
                     }
                     break;
@@ -118,8 +117,7 @@ class SoapRequest extends Request
 
     protected function initializeMtomSoapMessage(array $contentTypeHeader, $content)
     {
-        if(!isset($contentTypeHeader['start']) || !isset($contentTypeHeader['start-info']) || !isset($contentTypeHeader['boundary']))
-        {
+        if(!isset($contentTypeHeader['start']) || !isset($contentTypeHeader['start-info']) || !isset($contentTypeHeader['boundary'])) {
             throw new \InvalidArgumentException();
         }
 
@@ -134,13 +132,11 @@ class SoapRequest extends Request
 
         // TODO: add more checks to achieve full compatibility to MTOM spec
         // http://www.w3.org/TR/soap12-mtom/
-        if($rootPart->id != $soapMimePartId || $rootPartType['_type'] != 'application/xop+xml' || $rootPartType['type'] != $soapMimePartType)
-        {
+        if($rootPart->id != $soapMimePartId || $rootPartType['_type'] != 'application/xop+xml' || $rootPartType['type'] != $soapMimePartType) {
             throw new \InvalidArgumentException();
         }
 
-        foreach($mimeParts as $mimePart)
-        {
+        foreach($mimeParts as $mimePart) {
             $this->soapAttachments->add(new SoapAttachment(
                 $mimePart->id,
                 $mimePart->type,
@@ -160,8 +156,7 @@ class SoapRequest extends Request
 
         $result['_type'] = array_shift($parts);
 
-        foreach($parts as $part)
-        {
+        foreach($parts as $part) {
             list($key, $value) = explode('=', trim($part), 2);
 
             $result[$key] = trim($value, '"');

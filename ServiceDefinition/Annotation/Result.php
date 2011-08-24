@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,12 +8,38 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceDefinition\Annotation;
+namespace BeSimple\SoapBundle\ServiceDefinition\Annotation;
 
-class Result extends TypedElement
-{    
-    public function __construct($values)
+/**
+ * @Annotation
+ */
+class Result extends Configuration implements TypedElementInterface
+{
+    private $phpType;
+    private $xmlType;
+
+    public function getPhpType()
     {
-        parent::__construct($values);
+        return $this->phpType;
+    }
+
+    public function getXmlType()
+    {
+        return $this->xmlType;
+    }
+
+    public function setPhpType($phpType)
+    {
+        $this->phpType = $phpType;
+    }
+
+    public function setXmlType($xmlType)
+    {
+        $this->xmlType = $xmlType;
+    }
+
+    public function getAliasName()
+    {
+        return 'result';
     }
 }

@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,15 +8,15 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\ServiceDefinition\Loader;
+namespace BeSimple\SoapBundle\ServiceDefinition\Loader;
+
+use BeSimple\SoapBundle\ServiceDefinition\Argument;
+use BeSimple\SoapBundle\ServiceDefinition\Header;
+use BeSimple\SoapBundle\ServiceDefinition\Method;
+use BeSimple\SoapBundle\ServiceDefinition\Type;
+use BeSimple\SoapBundle\ServiceDefinition\ServiceDefinition;
 
 use Symfony\Component\Config\Loader\FileLoader;
-
-use Bundle\WebServiceBundle\ServiceDefinition\ServiceDefinition;
-use Bundle\WebServiceBundle\ServiceDefinition\Header;
-use Bundle\WebServiceBundle\ServiceDefinition\Method;
-use Bundle\WebServiceBundle\ServiceDefinition\Argument;
-use Bundle\WebServiceBundle\ServiceDefinition\Type;
 
 class XmlFileLoader extends FileLoader
 {
@@ -24,53 +24,47 @@ class XmlFileLoader extends FileLoader
     {
         return is_string($resource) && 'xml' === pathinfo($resource, PATHINFO_EXTENSION);
     }
-    
+
     public function load($file, $type = null)
     {
         $path = $this->locator->locate($file);
-        
-        $xml = $this->parseFile($path);
+        $xml  = $this->parseFile($path);
 
         $definition = new ServiceDefinition();
         $definition->setName((string) $xml['name']);
         $definition->setNamespace((string) $xml['namespace']);
 
-        foreach($xml->header as $header)
-        {
+        foreach($xml->header as $header) {
             $definition->getHeaders()->add($this->parseHeader($header));
         }
 
-        foreach($xml->method as $method)
-        {
+        foreach($xml->method as $method) {
             $definition->getMethods()->add($this->parseMethod($method));
         }
-        
+
         return $definition;
     }
 
     /**
      * @param \SimpleXMLElement $node
      *
-     * @return \Bundle\WebServiceBundle\ServiceDefinition\Header
+     * @return \BeSimple\SoapBundle\ServiceDefinition\Header
      */
     protected function parseHeader(\SimpleXMLElement $node)
     {
-        $header = new Header((string)$node['name'], $this->parseType($node->type));
-
-        return $header;
+        return new Header((string)$node['name'], $this->parseType($node->type));
     }
 
     /**
      * @param \SimpleXMLElement $node
      *
-     * @return \Bundle\WebServiceBundle\ServiceDefinition\Method
+     * @return \BeSimple\SoapBundle\ServiceDefinition\Method
      */
     protected function parseMethod(\SimpleXMLElement $node)
     {
         $method = new Method((string)$node['name'], (string)$node['controller']);
 
-        foreach($node->argument as $argument)
-        {
+        foreach($node->argument as $argument) {
             $method->getArguments()->add($this->parseArgument($argument));
         }
 
@@ -82,7 +76,7 @@ class XmlFileLoader extends FileLoader
     /**
      * @param \SimpleXMLElement $node
      *
-     * @return \Bundle\WebServiceBundle\ServiceDefinition\Argument
+     * @return \BeSimple\SoapBundle\ServiceDefinition\Argument
      */
     protected function parseArgument(\SimpleXMLElement $node)
     {
@@ -94,17 +88,15 @@ class XmlFileLoader extends FileLoader
     /**
      * @param \SimpleXMLElement $node
      *
-     * @return \Bundle\WebServiceBundle\ServiceDefinition\Type
+     * @return \BeSimple\SoapBundle\ServiceDefinition\Type
      */
     protected function parseType(\SimpleXMLElement $node)
     {
         $namespaces = $node->getDocNamespaces(true);
-        $qname = explode(':', $node['xml-type'], 2);
-        $xmlType = sprintf('{%s}%s', $namespaces[$qname[0]], $qname[1]);
+        $qname      = explode(':', $node['xml-type'], 2);
+        $xmlType    = sprintf('{%s}%s', $namespaces[$qname[0]], $qname[1]);
 
-        $type = new Type((string)$node['php-type'], $xmlType, (string)$node['converter']);
-
-        return $type;
+        return new Type((string)$node['php-type'], $xmlType, (string)$node['converter']);
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the WebServiceBundle.
+ * This file is part of the BeSimpleSoapBundle.
  *
  * (c) Christian Kerl <christian-kerl@web.de>
  *
@@ -8,7 +8,7 @@
  * with this source code in the file LICENSE.
  */
 
-namespace Bundle\WebServiceBundle\Soap;
+namespace BeSimple\SoapBundle\Soap;
 
 class SoapHeader
 {
@@ -19,8 +19,8 @@ class SoapHeader
     public function __construct($namespace, $name, $data)
     {
         $this->namespace = $namespace;
-        $this->name = $name;
-        $this->data = $data;
+        $this->name      = $name;
+        $this->data      = $data;
     }
 
     public function getNamespace()
